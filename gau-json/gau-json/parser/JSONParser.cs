@@ -4,12 +4,14 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using DemoInfoModded;
+using DemoInfo;
 using Newtonsoft.Json;
 using Data.Gamestate;
 using Data.Gameevents;
+using Data.Gameobjects;
+using MathNet.Spatial.Euclidean;
 
-namespace JSONParser
+namespace JSONParsing
 {
     class JSONParser
     {
@@ -32,7 +34,7 @@ namespace JSONParser
         /// </summary>
         /// <param name="gs"></param>
         /// <param name="prettyjson"></param>
-        public void dumpJSONFile(Gamestate gs, bool prettyjson)
+        public void dumpJSONFile(ReplayGamestate gs, bool prettyjson)
         {
             Formatting f = Formatting.None;
             if (prettyjson)
@@ -42,9 +44,9 @@ namespace JSONParser
         }
 
 
-        public Gamestate deserializeGamestateString(string gamestatestring)
+        public ReplayGamestate deserializeGamestateString(string gamestatestring)
         {
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<Gamestate>(gamestatestring, settings);
+            return Newtonsoft.Json.JsonConvert.DeserializeObject<ReplayGamestate>(gamestatestring, settings);
         }
 
 
@@ -53,7 +55,7 @@ namespace JSONParser
         /// </summary>
         /// <param name="gs"></param>
         /// <param name="prettyjson"></param>
-        public string dumpJSONString(Gamestate gs, bool prettyjson)
+        public string dumpJSONString(ReplayGamestate gs, bool prettyjson)
         {
             Formatting f = Formatting.None;
             if (prettyjson)
@@ -68,9 +70,9 @@ namespace JSONParser
 
         
 
-        public Meta assembleGamemeta(string mapname, float tickrate, IEnumerable<DemoInfoModded.Player> players)
+        public ReplayGamstateMeta assembleGamemeta(string mapname, float tickrate, IEnumerable<DemoInfo.Player> players)
         {
-            return new Meta
+            return new ReplayGamstateMeta
             {
                 gamestate_id = 0,
                 mapname = mapname,
@@ -85,7 +87,7 @@ namespace JSONParser
         {
             return new PlayerKilled
             {
-                gameevent = "player_killed",
+                gameeventtype = "player_killed",
                 actor = assemblePlayerDetailed(pke.Killer),
                 victim = assemblePlayerDetailed(pke.Victim),
                 assister = assemblePlayerDetailed(pke.Assister),
@@ -99,7 +101,7 @@ namespace JSONParser
         {
             return new PlayerSpotted
             {
-                gameevent = "player_spotted",
+                gameeventtype = "player_spotted",
                 actor = assemblePlayerDetailed(e.player)
             };
         }
@@ -108,7 +110,7 @@ namespace JSONParser
         {
             return new PlayerHurt
             {
-                gameevent = "player_hurt",
+                gameeventtype = "player_hurt",
                 actor = assemblePlayerDetailed(phe.Attacker),
                 victim = assemblePlayerDetailed(phe.Victim),
                 armor = phe.Armor,
@@ -120,11 +122,11 @@ namespace JSONParser
             };
         }
 
-        internal MovementEvents assemblePlayerPosition(DemoInfoModded.Player p)
+        internal MovementEvents assemblePlayerPosition(DemoInfo.Player p)
         {
             return new MovementEvents
             {
-                gameevent = "player_position",
+                gameeventtype = "player_position",
                 actor = assemblePlayerDetailed(p)
             };
         }
@@ -135,7 +137,7 @@ namespace JSONParser
         {
             return new WeaponFire
             {
-                gameevent = "weapon_fire",
+                gameeventtype = "weapon_fire",
                 actor = assemblePlayerDetailed(we.Shooter),
                 weapon = assembleWeapon(we.Weapon)
             };
@@ -145,7 +147,7 @@ namespace JSONParser
         {
             return new WeaponFire
             {
-                gameevent = "weapon_fire_empty",
+                gameeventtype = "weapon_fire_empty",
                 actor = assemblePlayerDetailed(we.Shooter),
                 weapon = assembleWeapon(we.Weapon)
             };
@@ -163,20 +165,20 @@ namespace JSONParser
                 FlashEventArgs f = e as FlashEventArgs;
                 return new FlashNade
                 {
-                    gameevent = eventname,
+                    gameeventtype = eventname,
                     actor = assemblePlayerDetailed(e.ThrownBy),
                     nadetype = e.NadeType.ToString(),
-                    position = new EDVector3D { X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z },
+                    position = new Point3D(e.Position.X, e.Position.Y, e.Position.Z),
                     flashedplayers = assembleFlashedPlayers(f.FlashedPlayers)
                 };
             }
 
             return new NadeEvents
             {
-                gameevent = eventname,
+                gameeventtype = eventname,
                 actor = assemblePlayerDetailed(e.ThrownBy),
                 nadetype = e.NadeType.ToString(),
-                position = new EDVector3D { X = e.Position.X, Y = e.Position.Y, Z = e.Position.Z },
+                position = new Point3D(e.Position.X, e.Position.Y, e.Position.Z),
             };
         }
 
@@ -189,7 +191,7 @@ namespace JSONParser
         {
             return new BombEvents
             {
-                gameevent = gameevent,
+                gameeventtype = gameevent,
                 site = be.Site,
                 actor = assemblePlayerDetailed(be.Player)
             };
@@ -199,7 +201,7 @@ namespace JSONParser
         {
             return new BombState
             {
-                gameevent = gameevent,
+                gameeventtype = gameevent,
                 actor = assemblePlayerDetailed(be.Player)
             };
         }
@@ -208,7 +210,7 @@ namespace JSONParser
         {
             return new BombState
             {
-                gameevent = gameevent,
+                gameeventtype = gameevent,
                 actor = assemblePlayerDetailed(be.Player)
             };
         }
@@ -217,7 +219,7 @@ namespace JSONParser
         {
             return new BombEvents
             {
-                gameevent = gameevent,
+                gameeventtype = gameevent,
                 site = bde.Site,
                 actor = assemblePlayerDetailed(bde.Player),
                 haskit = bde.HasKit
@@ -226,22 +228,22 @@ namespace JSONParser
         #endregion
 
         #region Serverevents
-        internal ServerEvents assemblePlayerBind(DemoInfoModded.Player player)
+        internal ServerEvents assemblePlayerBind(DemoInfo.Player player)
         {
             Console.WriteLine("Bind: " + player.Name + " ID: " + player.SteamID);
             return new ServerEvents
             {
-                gameevent = "player_bind",
+                gameeventtype = "player_bind",
                 actor = assemblePlayer(player)
             };
         }
 
-        internal ServerEvents assemblePlayerDisconnected(DemoInfoModded.Player player)
+        internal ServerEvents assemblePlayerDisconnected(DemoInfo.Player player)
         {
             Console.WriteLine("Disconnect: " +player.Name + " ID: "+player.SteamID);
             return new ServerEvents
-            { 
-                gameevent = "player_disconnected",
+            {
+                gameeventtype = "player_disconnected",
                 actor = assemblePlayer(player)
             };
         }
@@ -255,7 +257,7 @@ namespace JSONParser
 
             return new TakeOverEvent
             {
-                gameevent = "player_takeover",
+                gameeventtype = "player_takeover",
                 actor = assemblePlayer(e.Taker),
                 taken = assemblePlayer(e.Taken)
             };
@@ -265,52 +267,52 @@ namespace JSONParser
 
         #region Subevents
 
-        internal List<ED.PlayerDetailed> assemblePlayers(DemoInfoModded.Player[] ps)
+        internal List<PlayerDetailed> assemblePlayers(DemoInfo.Player[] ps)
         {
             if (ps == null)
                 return null;
-            List<ED.PlayerDetailed> players = new List<ED.PlayerDetailed>();
+            List<PlayerDetailed> players = new List<PlayerDetailed>();
             foreach (var player in ps)
                 players.Add(assemblePlayerDetailed(player));
 
             return players;
         }
 
-        internal ED.Player assemblePlayer(DemoInfoModded.Player p)
+        internal Data.Gameobjects.Player assemblePlayer(DemoInfo.Player p)
         {
-            return new ED.Player
+            return new Data.Gameobjects.Player
             {
                 playername = p.Name,
                 player_id = p.SteamID,
-                position = new EDVector3D { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z },
-                facing = new ED.Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
-                velocity = new ED.Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z },
+                position = new Point3D(p.Position.X, p.Position.Y, p.Position.Z),
+                facing = new Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
+                velocity = new Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z },
                 team = p.Team.ToString(),
                 isSpotted = p.IsSpotted,
                 HP = p.HP
             };
         }
 
-        internal List<ED.PlayerFlashed> assembleFlashedPlayers(DemoInfoModded.Player[] ps)
+        internal List<PlayerFlashed> assembleFlashedPlayers(DemoInfo.Player[] ps)
         {
             if (ps == null)
                 return null;
-            List<ED.PlayerFlashed> players = new List<ED.PlayerFlashed>();
+            List<PlayerFlashed> players = new List<PlayerFlashed>();
             foreach (var player in ps)
                 players.Add(assembleFlashPlayer(player));
 
             return players;
         }
 
-        internal ED.PlayerFlashed assembleFlashPlayer(DemoInfoModded.Player p)
+        internal PlayerFlashed assembleFlashPlayer(DemoInfo.Player p)
         {
-            ED.PlayerFlashed player = new ED.PlayerFlashed
+            PlayerFlashed player = new PlayerFlashed
             {
                 playername = p.Name,
                 player_id = p.SteamID,
-                position = new EDVector3D { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z },
-                velocity = new ED.Velocity { VX = p.Velocity.X, VY = p.Velocity.X, VZ = p.Velocity.X },
-                facing = new ED.Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
+                position = new Point3D(p.Position.X, p.Position.Y, p.Position.Z),
+                velocity = new Velocity { VX = p.Velocity.X, VY = p.Velocity.X, VZ = p.Velocity.X },
+                facing = new Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
                 HP = p.HP,
                 isSpotted = p.IsSpotted,
                 team = p.Team.ToString(),
@@ -324,7 +326,7 @@ namespace JSONParser
         {
             return new MovementEvents
             {
-                gameevent = "player_jumped",
+                gameeventtype = "player_jumped",
                 actor = assemblePlayerDetailed(e.Jumper)
             };
         }
@@ -333,7 +335,7 @@ namespace JSONParser
         {
             return new MovementEvents
             {
-                gameevent = "player_fallen",
+                gameeventtype = "player_fallen",
                 actor = assemblePlayerDetailed(e.Fallen)
             };
         }
@@ -342,7 +344,7 @@ namespace JSONParser
         {
             return new MovementEvents
             {
-                gameevent = "weapon_reload",
+                gameeventtype = "weapon_reload",
                 actor = assemblePlayerDetailed(we.Actor)
             };
         }
@@ -351,7 +353,7 @@ namespace JSONParser
         {
             return new MovementEvents
             {
-                gameevent = "player_footstep",
+                gameeventtype = "player_footstep",
                 actor = assemblePlayerDetailed(e.Stepper)
             };
         }
@@ -370,9 +372,9 @@ namespace JSONParser
 
 
 
-        internal ED.PlayerMeta assemblePlayerMeta(DemoInfoModded.Player p)
+        internal PlayerMeta assemblePlayerMeta(DemoInfo.Player p)
         {
-            return new ED.PlayerMeta
+            return new PlayerMeta
             {
                 playername = p.Name,
                 player_id = p.SteamID,
@@ -381,16 +383,16 @@ namespace JSONParser
             };
         }
 
-        internal ED.PlayerDetailed assemblePlayerDetailed(DemoInfoModded.Player p)
+        internal PlayerDetailed assemblePlayerDetailed(DemoInfo.Player p)
         {
             if (p == null) return null;
  
-            return new ED.PlayerDetailed
+            return new PlayerDetailed
             {
                 playername = p.Name,
                 player_id = p.SteamID,
-                position = new EDVector3D { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z },
-                facing = new ED.Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
+                position = new Point3D(p.Position.X, p.Position.Y, p.Position.Z),
+                facing = new Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
                 team = p.Team.ToString(),
                 isDucking = p.IsDucking,
                 isSpotted = p.IsSpotted,
@@ -400,50 +402,50 @@ namespace JSONParser
                 hasDefuser = p.HasDefuseKit,
                 HP = p.HP,
                 armor = p.Armor,
-                velocity = new ED.Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z }  
+                velocity = new Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z }  
             };
         }
 
 
-        internal ED.PlayerDetailedWithItems assemblePlayerDetailedWithItems(DemoInfoModded.Player p)
+        internal PlayerDetailedWithItems assemblePlayerDetailedWithItems(DemoInfo.Player p)
         {
-            ED.PlayerDetailedWithItems playerdetailed = new ED.PlayerDetailedWithItems
+            PlayerDetailedWithItems playerdetailed = new PlayerDetailedWithItems
             {
                 playername = p.Name,
                 player_id = p.SteamID,
-                position = new EDVector3D { X = p.Position.X, Y = p.Position.Y, Z = p.Position.Z },
-                facing = new ED.Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
+                position = new Point3D(p.Position.X, p.Position.Y, p.Position.Z),
+                facing = new Facing { Yaw = p.ViewDirectionX, Pitch = p.ViewDirectionY },
                 team = p.Team.ToString(),
                 isDucking = p.IsDucking,
                 hasHelmet = p.HasHelmet,
                 hasDefuser = p.HasDefuseKit,
                 HP = p.HP,
                 armor = p.Armor,
-                velocity = new ED.Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z },
+                velocity = new Velocity { VX = p.Velocity.X, VY = p.Velocity.Y, VZ = p.Velocity.Z },
                 items = assembleWeapons(p.Weapons)
             };
 
             return playerdetailed;
         }
 
-        internal List<ED.Weapon> assembleWeapons(IEnumerable<Equipment> wps)
+        internal List<Weapon> assembleWeapons(IEnumerable<Equipment> wps)
         {
-            List<ED.Weapon> jwps = new List<ED.Weapon>();
+            List<Weapon> jwps = new List<Weapon>();
             foreach (var w in wps)
                 jwps.Add(assembleWeapon(w));
 
             return jwps;
         }
 
-        internal ED.Weapon assembleWeapon(Equipment wp)
+        internal Weapon assembleWeapon(Equipment wp)
         {
             if (wp == null)
             {
                 Console.WriteLine("Weapon null. Bytestream not suitable for this version of DemoInfo");
-                return new ED.Weapon();
+                return new Weapon();
             }
 
-            ED.Weapon jwp = new ED.Weapon
+            Weapon jwp = new Weapon
             {
                 //owner = assemblePlayerDetailed(wp.Owner), //TODO: fill weaponcategorie and type
                 name = wp.Weapon.ToString(),

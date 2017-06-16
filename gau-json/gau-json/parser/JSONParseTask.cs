@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 
-namespace JSONParser
+namespace JSONParsing
 {
     /// <summary>
     /// Class holding every data on how and where to parse.

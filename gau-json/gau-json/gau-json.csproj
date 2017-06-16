@@ -33,6 +33,10 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <ItemGroup>
+    <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\..\..\gau-encounterdetection\gau-encounterdetection\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
     <Reference Include="System.Xml.Linq" />
@@ -43,6 +47,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="generators\CSGOGameStateGenerator.cs" />
+    <Compile Include="generators\IGameStateGenerator.cs" />
     <Compile Include="parser\JSONParser.cs" />
     <Compile Include="parser\JSONParseTask.cs" />
     <Compile Include="Program.cs" />
@@ -50,8 +56,22 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <None Include="packages.config" />
   </ItemGroup>
-  <ItemGroup />
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\..\demoinfo\DemoInfo\DemoInfo.csproj">
+      <Project>{22d4cfc7-6810-4c18-a353-71a49782394f}</Project>
+      <Name>DemoInfo</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\gau-encounterdetection\gau-encounterdetection\gau-encounterdetection\gau-encounterdetection.csproj">
+      <Project>{a36a9504-dd34-4c5c-a1e5-bff7528344f0}</Project>
+      <Name>gau-encounterdetection</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\..\..\mathnet-spatial\src\Spatial\Spatial.csproj">
+      <Project>{1f3364c6-9da3-4006-b83f-6d1335099895}</Project>
+      <Name>Spatial</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
