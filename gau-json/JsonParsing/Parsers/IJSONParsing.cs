@@ -4,9 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace gau_json.generators
+namespace JSONParsing
 {
-    interface IGameStateGenerator
+    interface IJSONParsing
     {
     }
 }

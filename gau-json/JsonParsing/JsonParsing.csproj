@@ -32,10 +32,29 @@
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\x86\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DebugType>full</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|x86'">
+    <OutputPath>bin\x86\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <Optimize>true</Optimize>
+    <DebugType>pdbonly</DebugType>
+    <PlatformTarget>x86</PlatformTarget>
+    <ErrorReport>prompt</ErrorReport>
+    <CodeAnalysisRuleSet>MinimumRecommendedRules.ruleset</CodeAnalysisRuleSet>
+    <Prefer32Bit>true</Prefer32Bit>
+  </PropertyGroup>
   <ItemGroup>
     <Reference Include="Newtonsoft.Json, Version=10.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\..\..\gau-encounterdetection\gau-encounterdetection\packages\Newtonsoft.Json.10.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
-      <Private>True</Private>
+      <HintPath>..\..\..\gau-encounterdetection\gau-encounterdetection\packages\Newtonsoft.Json.10.0.3\lib\net45\Newtonsoft.Json.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.Core" />
@@ -47,10 +66,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="generators\CSGOGameStateGenerator.cs" />
-    <Compile Include="generators\IGameStateGenerator.cs" />
-    <Compile Include="parser\JSONParser.cs" />
-    <Compile Include="parser\JSONParseTask.cs" />
+    <Compile Include="Generators\CSGOGameStateGenerator.cs" />
+    <Compile Include="Generators\GameStateGenerator.cs" />
+    <Compile Include="Generators\IGameStateGenerator.cs" />
+    <Compile Include="Parsers\AOE2HDJSONParser.cs" />
+    <Compile Include="Parsers\IJSONParsing.cs" />
+    <Compile Include="Parsers\JSONParser.cs" />
+    <Compile Include="Parsers\CSGOJSONParser.cs" />
+    <Compile Include="Parsers\JSONParseTask.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -63,13 +86,13 @@
       <Project>{22d4cfc7-6810-4c18-a353-71a49782394f}</Project>
       <Name>DemoInfo</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\gau-encounterdetection\gau-encounterdetection\gau-encounterdetection\gau-encounterdetection.csproj">
+    <ProjectReference Include="..\..\..\gau-encounterdetection\gau-encounterdetection\EncounterDetection\EncounterDetection.csproj">
       <Project>{a36a9504-dd34-4c5c-a1e5-bff7528344f0}</Project>
-      <Name>gau-encounterdetection</Name>
+      <Name>EncounterDetection</Name>
     </ProjectReference>
-    <ProjectReference Include="..\..\..\mathnet-spatial\src\Spatial\Spatial.csproj">
+    <ProjectReference Include="..\..\..\mathnet-spatial\src\Spatial\SpatialMath.csproj">
       <Project>{1f3364c6-9da3-4006-b83f-6d1335099895}</Project>
-      <Name>Spatial</Name>
+      <Name>SpatialMath</Name>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
