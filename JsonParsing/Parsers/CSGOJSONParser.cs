@@ -25,9 +25,9 @@ namespace JSONParsing
             return new ReplayGamstateMeta
             {
                 gamestate_id = 0,
-                mapname = mapname,
-                tickrate = tickrate,
-                players = AssemblePlayerMetas(players.ToArray())
+                Mapname = mapname,
+                Tickrate = tickrate,
+                Players = AssemblePlayerMetas(players.ToArray())
             };
         }
 

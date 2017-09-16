@@ -8,5 +8,6 @@ namespace JSONParsing
 {
     interface IJSONParsing
     {
+        //TODO all functions for parsing a demo to a valid json usable for encounter detection (f.e. playerkilled needs to be parsed
     }
 }

@@ -11,7 +11,7 @@ using MathNet.Spatial.Euclidean;
 
 namespace JSONParsing
 {
-    class JSONParser
+    public class JSONParser
     {
 
         private static StreamWriter outputStream;
@@ -42,9 +42,9 @@ namespace JSONParsing
         }
 
 
-        public ReplayGamestate deserializeGamestateString(string gamestatestring)
+        public ReplayGamestate DeserializeGamestateString(string gamestatestring)
         {
-            return Newtonsoft.Json.JsonConvert.DeserializeObject<ReplayGamestate>(gamestatestring, settings);
+            return JsonConvert.DeserializeObject<ReplayGamestate>(gamestatestring, settings);
         }
 
 

@@ -16,24 +16,13 @@ using global::GameStateGenerators;
 
 namespace GameStateGenerators
 {
-    public class GameStateGenerator : IGameStateGenerator
+    public abstract class GameStateGenerator : IGameStateGenerator
     {
 
         /// <summary>
-        /// Parser assembling and disassembling objects later parsed with Newtonsoft.JSON
+        /// Current parsetask for this Generator with details on how to parse a demo to json format
         /// </summary>
-        private static JSONParser jsonparser;
-
-        /// <summary>
-        /// CSGO replay parser TODO: make generator and jsonparser generic to demo parser
-        /// </summary>
-        private static DemoParser parser;
-
-        /// <summary>
-        /// Current task containg parsing information and data
-        /// </summary>
-        private static ParseTask ptask;
-
+        private ParseTaskSettings ptask;
 
         //
         //  Objects for JSON-Serialization
@@ -82,6 +71,15 @@ namespace GameStateGenerators
         public Stopwatch Watch;
 
         /// <summary>
+        /// Base constructor for any generator
+        /// </summary>
+        /// <param name="newtask"></param>
+        public GameStateGenerator(ParseTaskSettings newtask)
+        {
+            ptask = newtask;
+        }
+
+        /// <summary>
         /// Initializes the generator or resets it if a demo was parser before
         /// </summary>
         public void InitializeGenerator()
@@ -97,7 +95,7 @@ namespace GameStateGenerators
             hasRoundStarted = false;
             hasFreeezEnded = false;
 
-            positioninterval = ptask.positioninterval;
+            positioninterval = ptask.PositionUpdateInterval;
 
             tick_id = 0;
             round_id = 0;
@@ -106,11 +104,8 @@ namespace GameStateGenerators
 
             InitWatch();
 
-            //Parser to transform DemoParser events to JSON format //TODO choose correct parser type
-            jsonparser = new CSGOJSONParser(ptask.destpath, ptask.settings);
-
             //Init lists
-            Match.rounds = new List<Round>();
+            Match.Rounds = new List<Round>();
             CurrentRound.ticks = new List<Tick>();
             CurrentTick.tickevents = new List<Event>();
         }
@@ -120,23 +115,15 @@ namespace GameStateGenerators
         /// </summary>
         /// <param name="parser"></param>
         /// <param name="path"></param>
-        public void GenerateJSONFile(DemoParser newdemoparser, ParseTask newtask)
+        public void GenerateJSONFile()
         {
-            ptask = newtask;
-            parser = newdemoparser;
-
             InitializeGenerator();
 
             GenerateGamestate();
 
-            /*for (int i = 0; i < parser.TickRate; i++) //Threadamount depending on tickrate
-            {
-                ThreadPool.QueueUserWorkItem(GenerateGamestate, i);
-
-            }*/
-
             //Dump the complete gamestate object into JSON-file and do not pretty print(memory expensive)
-            jsonparser.DumpJSONFile(GameState, ptask.usepretty);
+            if (GameState == null) throw new Exception("Gamestate needs to be generated before dumping it to a string");
+            GetJSONParser().DumpJSONFile(GameState, ptask.usepretty);
 
             PrintWatch();
 
@@ -148,18 +135,15 @@ namespace GameStateGenerators
         /// <summary>
         /// Returns a string of the serialized gamestate object
         /// </summary>
-        public string GenerateJSONString(DemoParser newdemoparser, ParseTask newtask)
+        public string GenerateJSONString(DemoParser newdemoparser, ParseTaskSettings newtask)
         {
-            ptask = newtask;
-            parser = newdemoparser;
-
             InitializeGenerator();
 
             GenerateGamestate(); // Fills variable gs with gamestateobject
             string gsstr = "";
             try
             {
-                gsstr = jsonparser.DumpJSONString(GameState, ptask.usepretty);
+                gsstr = GetJSONParser().DumpJSONString(GameState, newtask.usepretty);
             }
             catch (Exception e)
             {
@@ -176,9 +160,14 @@ namespace GameStateGenerators
         }
 
         /// <summary>
-        /// Override this function!
+        /// Override this function to produce a gamestate!
         /// </summary>
-        public virtual void GenerateGamestate() { }
+        public abstract void GenerateGamestate();
+
+        /// <summary>
+        /// Override this function to read the mapname of a gamestate!
+        /// </summary>
+        public abstract string PeakMapname();
 
         //
         //
@@ -186,6 +175,10 @@ namespace GameStateGenerators
         //
         //
 
+        public  virtual JSONParser GetJSONParser()
+        {
+            throw new NotImplementedException();
+        }
 
         /// <summary>
         /// Measure time to roughly check performance
@@ -209,13 +202,13 @@ namespace GameStateGenerators
             var elapsedMs = Watch.ElapsedMilliseconds;
             var sec = elapsedMs / 1000.0f;
 
-            Console.WriteLine("Time to parse: " + ptask.srcpath + ": " + sec + "sec. \n");
+            Console.WriteLine("Time to parse: " + ptask.SrcPath + ": " + sec + "sec. \n");
             Console.WriteLine("You can find the corresponding JSON at the same path. \n");
         }
 
         public void CleanUp()
         {
-            jsonparser.StopParser();
+            GetJSONParser().StopParser();
             ptask = null;
             GameState = null;
             GC.Collect();

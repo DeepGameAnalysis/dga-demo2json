@@ -19,31 +19,40 @@ namespace GameStateGenerators
     {
 
         /// <summary>
-        /// Parser assembling and disassembling objects later parsed with Newtonsoft.JSON
-        /// </summary>
-        private static CSGOJSONParser jsonparser;
-
-        /// <summary>
         /// CSGO replay parser
         /// </summary>
-        private static DemoParser parser;
+        private static DemoParser Csgoparser;
 
         /// <summary>
-        /// Current task containg parsing information and data
+        /// Parser assembling and disassembling objects later parsed with Newtonsoft.JSON - type depends on the current game
         /// </summary>
-        private static ParseTask ptask;
+        private static CSGOJSONParser Jsonparser;
 
-
-        public string PeakMapname(DemoParser newdemoparser, ParseTask newtask)
+        /// <summary>
+        /// Constructor - Create a new CSGO Generator to generate a new Gamestate 
+        /// </summary>
+        /// <param name="newdemoparser"></param>
+        /// <param name="parsetask"></param>
+        public CSGOGameStateGenerator(DemoParser newdemoparser, ParseTaskSettings parsetask) : base(parsetask)
         {
-            ptask = newtask;
-            parser = newdemoparser;
+            Csgoparser = newdemoparser;
+            //Parser to transform DemoParser events to JSON format
+            Jsonparser = new CSGOJSONParser(parsetask.DestPath, parsetask.Settings);
+        }
 
-            InitializeGenerator();
+        override public JSONParser GetJSONParser()
+        {
+            return Jsonparser;
+        }
 
-            parser.ParseHeader();
-
-            return parser.Map;
+        /// <summary>
+        /// Peaks the map name of a csgo demo file
+        /// </summary>
+        /// <returns></returns>
+        override public string PeakMapname()
+        {
+            Csgoparser.ParseHeader();
+            return Csgoparser.Map;
         }
 
 
@@ -55,28 +64,31 @@ namespace GameStateGenerators
         /// <returns></returns>
         override public void GenerateGamestate()
         {
-            parser.ParseHeader();
+            if (Csgoparser == null) throw new Exception("No parser set");
+
+            if(Csgoparser.Header == null) // Watch out for mapname peaks
+                Csgoparser.ParseHeader(); 
 
             #region Main Gameevents
             //Start writing the gamestate object
-            parser.MatchStarted += (sender, e) =>
+            Csgoparser.MatchStarted += (sender, e) =>
             {
                 hasMatchStarted = true;
                 //Assign Gamemetadata
-                GameState.meta = jsonparser.AssembleGamemeta(parser.Map, parser.TickRate, parser.PlayingParticipants);
+                GameState.Meta = Jsonparser.AssembleGamemeta(Csgoparser.Map, Csgoparser.TickRate, Csgoparser.PlayingParticipants);
             };
 
             //Assign match object
-            parser.WinPanelMatch += (sender, e) =>
+            Csgoparser.WinPanelMatch += (sender, e) =>
             {
                 if (hasMatchStarted)
-                    GameState.match = Match;
+                    GameState.Match = Match;
                 hasMatchStarted = false;
 
             };
 
             //Start writing a round object
-            parser.RoundStart += (sender, e) =>
+            Csgoparser.RoundStart += (sender, e) =>
             {
                 if (hasMatchStarted)
                 {
@@ -88,14 +100,14 @@ namespace GameStateGenerators
             };
 
             //Add round object to match object
-            parser.RoundEnd += (sender, e) =>
+            Csgoparser.RoundEnd += (sender, e) =>
             {
                 if (hasMatchStarted)
                 {
                     if (hasRoundStarted) //TODO: maybe round fires false -> do in tickdone event (see github issues of DemoInfo)
                     {
                         CurrentRound.winner_team = e.Winner.ToString();
-                        Match.rounds.Add(CurrentRound);
+                        Match.Rounds.Add(CurrentRound);
                         CurrentRound = new Round();
                         CurrentRound.ticks = new List<Tick>();
                     }
@@ -106,7 +118,7 @@ namespace GameStateGenerators
 
             };
 
-            parser.FreezetimeEnded += (object sender, FreezetimeEndedEventArgs e) =>
+            Csgoparser.FreezetimeEnded += (object sender, FreezetimeEndedEventArgs e) =>
             {
                 if (hasMatchStarted)
                     hasFreeezEnded = true; //Just capture movement after freezetime has ended
@@ -117,19 +129,19 @@ namespace GameStateGenerators
 
             #region Playerevents
 
-            parser.WeaponFired += (object sender, WeaponFiredEventArgs we) =>
+            Csgoparser.WeaponFired += (object sender, WeaponFiredEventArgs we) =>
             {
                 if (hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.AssembleWeaponFire(we));
+                    CurrentTick.tickevents.Add(Jsonparser.AssembleWeaponFire(we));
             };
 
-            parser.PlayerSpotted += (sender, e) =>
+            Csgoparser.PlayerSpotted += (sender, e) =>
             {
                 if (hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.AssemblePlayerSpotted(e));
+                    CurrentTick.tickevents.Add(Jsonparser.AssemblePlayerSpotted(e));
             };
 
-            parser.WeaponReload += (object sender, WeaponReloadEventArgs we) =>
+            Csgoparser.WeaponReload += (object sender, WeaponReloadEventArgs we) =>
             {
                 if (hasMatchStarted)
                 {
@@ -137,7 +149,7 @@ namespace GameStateGenerators
                 }
             };
 
-            parser.WeaponFiredEmpty += (object sender, WeaponFiredEmptyEventArgs we) =>
+            Csgoparser.WeaponFiredEmpty += (object sender, WeaponFiredEmptyEventArgs we) =>
             {
                 if (hasMatchStarted)
                 {
@@ -145,7 +157,7 @@ namespace GameStateGenerators
                 }
             };
 
-            parser.PlayerJumped += (sender, e) =>
+            Csgoparser.PlayerJumped += (sender, e) =>
             {
                 if (hasMatchStarted)
                 {
@@ -158,7 +170,7 @@ namespace GameStateGenerators
 
             };
 
-            parser.PlayerFallen += (sender, e) =>
+            Csgoparser.PlayerFallen += (sender, e) =>
             {
                 if (hasMatchStarted)
                     if (e.Fallen != null)
@@ -167,27 +179,27 @@ namespace GameStateGenerators
                     }
             };
 
-            parser.PlayerStepped += (sender, e) =>
+            Csgoparser.PlayerStepped += (sender, e) =>
             {
                 if (hasMatchStarted)
                 {
-                    if (e.Stepper != null && parser.PlayingParticipants.Contains(e.Stepper))
+                    if (e.Stepper != null && Csgoparser.PlayingParticipants.Contains(e.Stepper))
                     { //Prevent spectating players from producing steps 
-                        CurrentTick.tickevents.Add(jsonparser.AssemblePlayerStepped(e));
+                        CurrentTick.tickevents.Add(Jsonparser.AssemblePlayerStepped(e));
                         alreadytracked.Add(e.Stepper);
                     }
                 }
 
             };
 
-            parser.PlayerKilled += (object sender, PlayerKilledEventArgs e) =>
+            Csgoparser.PlayerKilled += (object sender, PlayerKilledEventArgs e) =>
             {
                 if (hasMatchStarted)
                 {
                     //the killer is null if victim is killed by the world - eg. by falling
                     if (e.Killer != null)
                     {
-                        CurrentTick.tickevents.Add(jsonparser.AssemblePlayerKilled(e));
+                        CurrentTick.tickevents.Add(Jsonparser.AssemblePlayerKilled(e));
                         alreadytracked.Add(e.Killer);
                         alreadytracked.Add(e.Victim);
                     }
@@ -195,14 +207,14 @@ namespace GameStateGenerators
 
             };
 
-            parser.PlayerHurt += (object sender, PlayerHurtEventArgs e) =>
+            Csgoparser.PlayerHurt += (object sender, PlayerHurtEventArgs e) =>
             {
                 if (hasMatchStarted)
                 {
                     //the attacker is null if victim is damaged by the world - eg. by falling
                     if (e.Attacker != null)
                     {
-                        CurrentTick.tickevents.Add(jsonparser.AssemblePlayerHurt(e));
+                        CurrentTick.tickevents.Add(Jsonparser.AssemblePlayerHurt(e));
                         alreadytracked.Add(e.Attacker);
                         alreadytracked.Add(e.Victim);
                     }
@@ -213,53 +225,53 @@ namespace GameStateGenerators
 
             #region Nadeevents
             //Nade (Smoke Fire Decoy Flashbang and HE) events
-            parser.ExplosiveNadeExploded += (object sender, GrenadeEventArgs e) =>
+            Csgoparser.ExplosiveNadeExploded += (object sender, GrenadeEventArgs e) =>
                 {
                     if (e.ThrownBy != null && hasMatchStarted)
-                        CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "hegrenade_exploded"));
+                        CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "hegrenade_exploded"));
                 };
 
-            parser.FireNadeStarted += (object sender, FireEventArgs e) =>
+            Csgoparser.FireNadeStarted += (object sender, FireEventArgs e) =>
                     {
                         if (e.ThrownBy != null && hasMatchStarted)
-                            CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "firenade_exploded"));
+                            CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "firenade_exploded"));
                     };
 
-            parser.FireNadeEnded += (object sender, FireEventArgs e) =>
+            Csgoparser.FireNadeEnded += (object sender, FireEventArgs e) =>
                         {
                             if (e.ThrownBy != null && hasMatchStarted)
-                                CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "firenade_ended"));
+                                CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "firenade_ended"));
                         };
 
-            parser.SmokeNadeStarted += (object sender, SmokeEventArgs e) =>
+            Csgoparser.SmokeNadeStarted += (object sender, SmokeEventArgs e) =>
             {
                 if (e.ThrownBy != null && hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "smoke_exploded"));
+                    CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "smoke_exploded"));
             };
 
 
-            parser.SmokeNadeEnded += (object sender, SmokeEventArgs e) =>
+            Csgoparser.SmokeNadeEnded += (object sender, SmokeEventArgs e) =>
             {
                 if (e.ThrownBy != null && hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "smoke_ended"));
+                    CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "smoke_ended"));
             };
 
-            parser.DecoyNadeStarted += (object sender, DecoyEventArgs e) =>
+            Csgoparser.DecoyNadeStarted += (object sender, DecoyEventArgs e) =>
             {
                 if (e.ThrownBy != null && hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "decoy_exploded"));
+                    CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "decoy_exploded"));
             };
 
-            parser.DecoyNadeEnded += (object sender, DecoyEventArgs e) =>
+            Csgoparser.DecoyNadeEnded += (object sender, DecoyEventArgs e) =>
             {
                 if (e.ThrownBy != null && hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "decoy_ended"));
+                    CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "decoy_ended"));
             };
 
-            parser.FlashNadeExploded += (object sender, FlashEventArgs e) =>
+            Csgoparser.FlashNadeExploded += (object sender, FlashEventArgs e) =>
             {
                 if (e.ThrownBy != null && hasMatchStarted)
-                    CurrentTick.tickevents.Add(jsonparser.assembleNade(e, "flash_exploded"));
+                    CurrentTick.tickevents.Add(Jsonparser.assembleNade(e, "flash_exploded"));
             };
             /*
             // Seems to be redundant with all exploded events
@@ -272,48 +284,48 @@ namespace GameStateGenerators
             #endregion
 
             #region Bombevents
-            parser.BombAbortPlant += (object sender, BombEventArgs e) =>
+            Csgoparser.BombAbortPlant += (object sender, BombEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBomb(e, "bomb_abort_plant"));
             };
 
-            parser.BombAbortDefuse += (object sender, BombDefuseEventArgs e) =>
+            Csgoparser.BombAbortDefuse += (object sender, BombDefuseEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBombDefuse(e, "bomb_abort_defuse"));
             };
 
-            parser.BombBeginPlant += (object sender, BombEventArgs e) =>
+            Csgoparser.BombBeginPlant += (object sender, BombEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBomb(e, "bomb_begin_plant"));
             };
 
-            parser.BombBeginDefuse += (object sender, BombDefuseEventArgs e) =>
+            Csgoparser.BombBeginDefuse += (object sender, BombDefuseEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBombDefuse(e, "bomb_begin_defuse"));
             };
 
-            parser.BombPlanted += (object sender, BombEventArgs e) =>
+            Csgoparser.BombPlanted += (object sender, BombEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBomb(e, "bomb_planted"));
             };
 
-            parser.BombDefused += (object sender, BombEventArgs e) =>
+            Csgoparser.BombDefused += (object sender, BombEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBomb(e, "bomb_defused"));
             };
 
-            parser.BombExploded += (object sender, BombEventArgs e) =>
+            Csgoparser.BombExploded += (object sender, BombEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBomb(e, "bomb_exploded"));
             };
 
 
-            parser.BombDropped += (object sender, BombDropEventArgs e) =>
+            Csgoparser.BombDropped += (object sender, BombDropEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBombState(e, "bomb_dropped"));
             };
 
-            parser.BombPicked += (object sender, BombPickUpEventArgs e) =>
+            Csgoparser.BombPicked += (object sender, BombPickUpEventArgs e) =>
             {
                 //tick.tickevents.Add(jsonparser.assembleBombState(e, "bomb_picked"));
             };
@@ -321,30 +333,30 @@ namespace GameStateGenerators
 
             #region Serverevents
 
-            parser.PlayerBind += (sender, e) =>
+            Csgoparser.PlayerBind += (sender, e) =>
             {
-                if (hasMatchStarted && parser.PlayingParticipants.Contains(e.Player))
+                if (hasMatchStarted && Csgoparser.PlayingParticipants.Contains(e.Player))
                 {
                     Console.WriteLine("Tickid: " + tick_id);
-                    CurrentTick.tickevents.Add(jsonparser.assemblePlayerBind(e.Player));
+                    CurrentTick.tickevents.Add(Jsonparser.assemblePlayerBind(e.Player));
                 }
             };
 
-            parser.PlayerDisconnect += (sender, e) =>
+            Csgoparser.PlayerDisconnect += (sender, e) =>
             {
-                if (hasMatchStarted && parser.PlayingParticipants.Contains(e.Player))
+                if (hasMatchStarted && Csgoparser.PlayingParticipants.Contains(e.Player))
                 {
                     Console.WriteLine("Tickid: " + tick_id);
-                    CurrentTick.tickevents.Add(jsonparser.assemblePlayerDisconnected(e.Player));
+                    CurrentTick.tickevents.Add(Jsonparser.assemblePlayerDisconnected(e.Player));
                 }
             };
 
-            parser.BotTakeOver += (sender, e) =>
+            Csgoparser.BotTakeOver += (sender, e) =>
             {
-                if (hasMatchStarted && parser.PlayingParticipants.Contains(e.Taker))
+                if (hasMatchStarted && Csgoparser.PlayingParticipants.Contains(e.Taker))
                 {
                     Console.WriteLine("Tickid: " + tick_id);
-                    CurrentTick.tickevents.Add(jsonparser.assemblePlayerTakeOver(e));
+                    CurrentTick.tickevents.Add(Jsonparser.assemblePlayerTakeOver(e));
                 }
             };
 
@@ -377,20 +389,20 @@ namespace GameStateGenerators
             // TickDone at last!! Otherwise events following this region are not tracked
             #region Tickevent / Ticklogic
             //Assemble a tick object with the above gameevents
-            parser.TickDone += (sender, e) =>
+            Csgoparser.TickDone += (sender, e) =>
             {
                 if (!hasMatchStarted) //Dont count ticks if the game has not started already (dismissing warmup and knife-phase for official matches)
                     return;
 
                 // 8 = 250ms, 16 = 500ms usw
-                var updaterate = 8 * (int)(Math.Ceiling(parser.TickRate / 32));
+                var updaterate = 8 * (int)(Math.Ceiling(Csgoparser.TickRate / 32));
 
                 if (updaterate == 0)
                    throw new Exception("Updaterate cannot be Zero");
                 // Dump playerpositions every at a given updaterate according to the tickrate
                 if ((tick_id % updaterate == 0) && hasFreeezEnded)
-                    foreach (var player in parser.PlayingParticipants.Where(player => !alreadytracked.Contains(player)))
-                        CurrentTick.tickevents.Add(jsonparser.AssemblePlayerPosition(player));
+                    foreach (var player in Csgoparser.PlayingParticipants.Where(player => !alreadytracked.Contains(player)))
+                        CurrentTick.tickevents.Add(Jsonparser.AssemblePlayerPosition(player));
                     
                 
 
@@ -404,7 +416,7 @@ namespace GameStateGenerators
             try
             {
                 //Parse tickwise and add the resulting tick to the round object
-                while (parser.ParseNextTick())
+                while (Csgoparser.ParseNextTick())
                 {
                     if (hasMatchStarted)
                     {
@@ -429,7 +441,7 @@ namespace GameStateGenerators
             {
                 Console.WriteLine("Problem with tick-parsing. Is your .dem valid? See this projects github page for more info.\n");
                 Console.WriteLine("Stacktrace: " + e.StackTrace + "\n");
-                jsonparser.StopParser();
+                Jsonparser.StopParser();
                 Watch.Stop();
             }
             #endregion
